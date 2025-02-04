@@ -1,0 +1,248 @@
+---
+title: "Rapport d'Analyse du Diagnostic de Performance Energétique des logements à Lyon 7"
+author: "Aymen Guermassi - Ines Lunion"
+date: "2025-02-03"
+output: html_document
+css: "style.css"
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+
+library(httr)
+library(readr)
+library(dplyr)
+library(jsonlite)
+library(sf)
+library(kableExtra)
+library(knitr)
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+library(corrplot)
+library(DT)
+# Charger les données
+base <- read.csv("C:/Users/aguer/Desktop/SAE R Shiny/donneesNeufsAnciens.csv")
+```
+
+
+# Introduction
+
+## Contexte et enjeux du projet
+
+Avec l’accélération du changement climatique et la hausse continue des prix de l’énergie, la sobriété énergétique s’impose comme une priorité pour les décideurs publics, les entreprises et les citoyens. Dans cette dynamique, l’amélioration de la performance énergétique des bâtiments constitue un levier essentiel pour réduire les émissions de gaz à effet de serre et optimiser la consommation énergétique.
+
+Le Diagnostic de Performance Énergétique (DPE) est un outil clé permettant d’évaluer la performance énergétique et climatique des logements en France. Il attribue à chaque bien une note allant de A (très performant) à G (très énergivore) et vise à informer les propriétaires et locataires sur leur consommation énergétique ainsi que sur les mesures d’amélioration possibles. Toutefois, les estimations du DPE reposent souvent sur des modèles conventionnels, qui peuvent différer des consommations réelles mesurées.
+
+Ce rapport présente une analyse des diagnostics de performance énergétique (DPE) des logements en France. Les données proviennent du fichier donneesNeufsAnciens.csv et incluent des informations sur les coûts énergétiques, les émissions de gaz à effet de serre (GES), les étiquettes DPE et GES, ainsi que des informations géographiques.
+
+
+
+## Chiffres clés
+
+Commençons par présenter quelques chiffres clés
+Nombre total d'habitations étudiées :
+```{r echo=FALSE, out.width='75%'}
+
+nb_total <- nrow(base)
+print(paste("Nombre total d'habitations étudiées :", nb_total))
+```
+
+Nombre total d'habitations existantes à Lyon :
+
+```{r echo=FALSE, out.width='75%'}
+nb_total_ancien <- nrow(subset(base, base$Type_logement == "existant"))
+print(paste("Nombre total d'habitations anciennes étudiées :", nb_total_ancien))
+```
+
+Nombre total d'habitations neuves à Lyon : 
+
+```{r echo=FALSE, out.width='75%'}
+nb_total_neuf <- nrow(subset(base, base$Type_logement == "neuf"))
+print(paste("Nombre total d'habitations neuves étudiées :", nb_total_neuf))
+```
+
+
+## Comparaison entre les logements anciens et neufs
+
+```{r echo=FALSE, out.width='75%'}
+inputPanel(
+  selectInput("Filtre_variable", label = "Choisir la variable à comparer :", 
+              choices = c("Etiquette DPE", "Etiquette GES"), 
+              selected = "Etiquette DPE", multiple = FALSE)
+)
+
+output$diagrams <- renderPlot({
+  par(mfrow = c(1, 2))
+  
+  selected_variable <- ifelse(input$Filtre_variable == "Etiquette DPE", "Etiquette_DPE", "Etiquette_GES")
+  
+  color_mapping <- c("A" = "darkgreen", "B" = "green", "C" = "green", "D" = "yellow", 
+                     "E" = "orange", "F" = "darkorange", "G" = "red")
+  
+  hist_data_ancien <- base %>%
+    filter(Type_logement == "existant") %>%
+    count(!!sym(selected_variable))
+  
+  if (nrow(hist_data_ancien) > 0) {
+    barplot(hist_data_ancien$n, names.arg = hist_data_ancien[[selected_variable]],
+            col = color_mapping[hist_data_ancien[[selected_variable]]], 
+            main = paste("Répartition des", selected_variable, "(Anciens)"),
+            xlab = selected_variable, ylab = "Nombre de logements")
+  } else {
+    plot.new()
+    text(0.5, 0.5, paste("Aucune donnée disponible pour les logements anciens"), cex = 1.2)
+  }
+  
+  hist_data_neuf <- base %>%
+    filter(Type_logement == "neuf") %>%
+    count(!!sym(selected_variable))
+  
+  if (nrow(hist_data_neuf) > 0) {
+    barplot(hist_data_neuf$n, names.arg = hist_data_neuf[[selected_variable]],
+            col = color_mapping[hist_data_neuf[[selected_variable]]], 
+            main = paste("Répartition des", selected_variable, "(Neufs)"),
+            xlab = selected_variable, ylab = "Nombre de logements")
+  } else {
+    plot.new()
+    text(0.5, 0.5, paste("Aucune donnée disponible pour les logements neufs"), cex = 1.2)
+  }
+})
+
+plotOutput("diagrams")
+```
+
+
+
+
+
+```{r echo=FALSE, out.width='75%'}
+
+
+# Conversion des étiquettes DPE en scores numériques
+base$Score_DPE <- case_when(
+  base$Etiquette_DPE == "A" ~ 1,
+  base$Etiquette_DPE == "B" ~ 2,
+  base$Etiquette_DPE == "C" ~ 3,
+  base$Etiquette_DPE == "D" ~ 4,
+  base$Etiquette_DPE == "E" ~ 5,
+  base$Etiquette_DPE == "F" ~ 6,
+  base$Etiquette_DPE == "G" ~ 7
+)
+
+# Création de la colonne Couleur_echelle
+base$Couleur_echelle <- case_when(
+  base$Etiquette_DPE == "A" ~ "darkgreen",
+  base$Etiquette_DPE == "B" ~ "green",
+  base$Etiquette_DPE == "C" ~ "green",
+  base$Etiquette_DPE == "D" ~ "yellow",
+  base$Etiquette_DPE == "E" ~ "orange",
+  base$Etiquette_DPE == "F" ~ "darkorange",
+  base$Etiquette_DPE == "G" ~ "red"
+)
+```
+
+# Vue d'ensemble des données
+## Répartition des étiquettes DPE
+
+```{r echo=FALSE, out.width='75%',fig.align = "center"}
+ggplot(base, aes(x = Etiquette_DPE, fill = Etiquette_DPE)) +
+  geom_bar() +
+  scale_fill_manual(values = c(
+    "A" = "darkgreen", "B" = "green", "C" = "green",
+    "D" = "yellow", "E" = "orange", "F" = "darkorange", "G" = "red"
+  )) +
+  theme_minimal() +
+  labs(title = "Répartition des étiquettes DPE", x = "Etiquette DPE", y = "Nombre de logements")
+```
+
+
+## Répartition des types de bâtiments
+
+
+```{r echo=FALSE, out.width='75%',fig.align = "center"}
+ggplot(base, aes(x = "", fill = Type_bâtiment)) +
+  geom_bar(width = 1) +
+  coord_polar("y") +
+  theme_minimal() +
+  labs(title = "Répartition des types de logements")
+```
+
+## Répartition des étiquettes GES
+
+
+```{r echo=FALSE, out.width='75%',fig.align = "center"}
+ggplot(base, aes(x = Etiquette_GES, fill = Etiquette_GES)) +
+  geom_bar() +
+  scale_fill_manual(values = c(
+    "A" = "#ADD8E6", "B" = "#87CEEB", "C" = "#1E90FF",
+    "D" = "#0000FF", "E" = "#8A2BE2", "F" = "#4B0082", "G" = "#2E004F"
+  )) +
+  theme_minimal() +
+  labs(title = "Répartition des étiquettes GES", x = "Etiquette GES", y = "Nombre de logements")
+```
+
+# Consommation moyenne par étiquette DPE
+
+
+```{r echo=FALSE, out.width='75%',fig.align = "center"}
+conso_moyenne <- base %>%
+  group_by(Etiquette_DPE) %>%
+  summarise(Conso_moyenne = mean(Conso_5_usages_é_finale, na.rm = TRUE))
+
+ggplot(conso_moyenne, aes(x = Etiquette_DPE, y = Conso_moyenne, fill = Etiquette_DPE)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c(
+    "A" = "darkgreen", "B" = "green", "C" = "green",
+    "D" = "yellow", "E" = "orange", "F" = "darkorange", "G" = "red"
+  )) +
+  theme_minimal() +
+  labs(
+    title = "Répartition de la consommation par étiquette DPE",
+    x = "Etiquette DPE",
+    y = "Consommation moyenne (kWh/m².an)"
+  )
+```
+
+# Analyse des corrélations
+## Corrélation entre deux variables
+
+```{r echo=FALSE, out.width='75%',fig.align = "center"}
+# Sélection de deux variables numériques
+var_x <- "Coût_chauffage"
+var_y <- "Conso_chauffage_é_finale"
+
+ggplot(base, aes(x = .data[[var_x]], y = .data[[var_y]])) +
+  geom_point(color = "steelblue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(
+    title = paste("Corrélation entre", var_x, "et", var_y),
+    x = var_x,
+    y = var_y
+  )
+```
+
+# Données brutes
+
+Voici un aperçu des données brutes :
+
+```{r echo=FALSE, out.width='75%',fig.align = "center"}
+
+
+# Affichage des données sous forme de tableau à défilement
+output$data_table <- renderDataTable({
+  datatable(base, options = list(scrollX = TRUE, pageLength = 10), caption = "Aperçu des données")
+})
+
+dataTableOutput("data_table")
+```
+
+
+# Conclusion
+
+Ce rapport fournit une analyse détaillée des données DPE, incluant des visualisations et des statistiques descriptives. Les résultats peuvent être utilisés pour identifier des tendances et des opportunités d'amélioration de la performance énergétique des logements.
+
+
+

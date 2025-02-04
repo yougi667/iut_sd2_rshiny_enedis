@@ -1,0 +1,67 @@
+/* Changer la couleur de fond */
+body {
+    background-color: #E6F5E6; /* Vert clair */
+    color: #000000; /* Texte noir */
+    font-family: Arial, sans-serif;
+}
+
+/* Centrer et styliser les titres */
+h1 {
+    text-align: center;
+    color: #0055FF; /* Bleu Enedis */
+    font-size: 2.5em;
+    font-weight: bold;
+}
+
+h2, h3 {
+    text-align: center;
+    color: #A2CD3A; /* Vert Enedis */
+    font-size: 2em;
+}
+
+/* Conteneur pour le contenu principal */
+.container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    margin: 20px auto;
+    max-width: 900px;
+}
+
+/* Styles des graphiques */
+.bar-chart .bar {
+    fill: #0055FF; /* Bleu pour les barres */
+}
+
+.pie-chart .slice {
+    fill: #A2CD3A; /* Vert pour les camemberts */
+}
+
+/* Tables stylisées */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px auto;
+}
+
+th {
+    background-color: #0055FF; /* Bleu Enedis */
+    color: white;
+    padding: 10px;
+}
+
+td {
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+    text-align: center;
+}
+
+/* Liens en vert */
+a {
+    color: #A2CD3A;
+}
+
+a:hover {
+    color: #0055FF;
+}
